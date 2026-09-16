@@ -8,7 +8,7 @@ const path = require('path');
 
 const bot = new Telegraf('8745804140:AAG-Uy9GKFuO0E2CtE1yoEqDFp78LfB1KGA', {
   telegram: {
-    agent: agent
+   
   }
 });
 
