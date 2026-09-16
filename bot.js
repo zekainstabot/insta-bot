@@ -3,8 +3,7 @@ const ytDlp = require('yt-dlp-exec');
 const fs = require('fs');
 const path = require('path');
 
-// توکن جدیدی که از BotFather می‌گیری را اینجا قرار بده
-const bot = new Telegraf('توکن_جدید_ربات');
+const bot = new Telegraf('8745804140:AAG-Uy9GKFuO0E2CtE1yoEqDFp78LfB1KGA');
 
 bot.start((ctx) => {
   ctx.reply('سلام 👋 لینک اینستاگرامت رو بفرست.');
