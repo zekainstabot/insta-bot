@@ -1,6 +1,6 @@
 const { Telegraf } = require('telegraf');
 const { HttpsProxyAgent } = require('https-proxy-agent');
-const { execFile } = require('child_process');
+const ytDlp = require('yt-dlp-exec');
 const fs = require('fs');
 const path = require('path');
 
