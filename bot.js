@@ -4,7 +4,7 @@ const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const agent = new HttpsProxyAgent('http://127.0.0.1:12334');
+
 
 const bot = new Telegraf('8745804140:AAG-Uy9GKFuO0E2CtE1yoEqDFp78LfB1KGA', {
   telegram: {
