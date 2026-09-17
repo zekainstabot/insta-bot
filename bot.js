@@ -4,7 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
-// توکن را از Environment Variable می‌خوانیم
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
 if (!BOT_TOKEN) {
@@ -14,26 +13,25 @@ if (!BOT_TOKEN) {
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// --------------------
-// Telegram Bot
-// --------------------
-
 bot.start(async (ctx) => {
-  await ctx.reply('سلام 👋\nلینک اینستاگرامت رو بفرست.');
+  await ctx.reply(
+    'سلام 👋\n\nلینک پست یا ریلز اینستاگرام را بفرست تا دانلودش کنم.'
+  );
 });
 
 bot.on('text', async (ctx) => {
   const text = ctx.message.text.trim();
 
   if (!text.includes('instagram.com')) {
-    return ctx.reply('لطفاً لینک اینستاگرام بفرست.');
+    await ctx.reply('❌ لطفاً یک لینک معتبر اینستاگرام بفرست.');
+    return;
   }
 
   const fileName = instagram_${Date.now()}.mp4;
   const filePath = path.join(__dirname, fileName);
 
   try {
-    await ctx.reply('در حال دانلود... ⏳');
+    await ctx.reply('⏳ در حال دانلود...');
 
     await ytDlp(text, {
       noPlaylist: true,
@@ -42,35 +40,38 @@ bot.on('text', async (ctx) => {
     });
 
     if (!fs.existsSync(filePath)) {
-      return ctx.reply('فایل پیدا نشد ❌');
+      await ctx.reply('❌ فایل دانلود نشد.');
+      return;
     }
+
+    await ctx.reply('📤 در حال ارسال فایل...');
 
     await ctx.replyWithVideo({
       source: filePath
     });
 
-    // حذف فایل بعد از ارسال
-    fs.unlinkSync(filePath);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    console.log('✅ فایل با موفقیت دانلود و ارسال شد.');
 
   } catch (error) {
-    console.error('Download error:', error);
+    console.error('❌ Download error:', error);
 
-    // اگر فایل ناقص ایجاد شده بود، حذفش می‌کنیم
     if (fs.existsSync(filePath)) {
       try {
         fs.unlinkSync(filePath);
-      } catch (e) {
-        console.error('File delete error:', e);
+      } catch (deleteError) {
+        console.error('❌ File delete error:', deleteError);
       }
     }
 
-    await ctx.reply('دانلود انجام نشد ❌');
+    await ctx.reply(
+      '❌ دانلود انجام نشد.\n\nممکن است لینک خصوصی باشد یا اینستاگرام اجازه دانلود ندهد.'
+    );
   }
 });
-
-// --------------------
-// HTTP Server برای Render
-// --------------------
 
 const PORT = process.env.PORT || 3000;
 
@@ -86,10 +87,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(HTTP server running on port ${PORT});
 });
 
-// --------------------
-// Start Bot
-// --------------------
-
 bot.launch()
   .then(() => {
     console.log('ربات روشن شد ✅');
@@ -98,6 +95,10 @@ bot.launch()
     console.error('❌ Telegram bot error:', error);
   });
 
-// خاموش شدن صحیح برنامه
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once('SIGINT', () => {
+  bot.stop('SIGINT');
+});
+
+process.once('SIGTERM', () => {
+  bot.stop('SIGTERM');
+});
