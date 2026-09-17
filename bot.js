@@ -52,8 +52,7 @@ bot.on('text', async (ctx) => {
       );
     }
 
-    const fileName = instagram_${ctx.from.id}_${Date.now()}.mp4;
-    filePath = path.join('/tmp', fileName);
+const fileName = instagram_${ctx.from.id}_${Date.now()}.mp4;    filePath = path.join('/tmp', fileName);
 
     await ytDlp(text, {
       noPlaylist: true,
