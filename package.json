@@ -1,17 +1,22 @@
 {
   "name": "insta-bot",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Instagram downloader Telegram bot",
+  "main": "bot.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node bot.js"
   },
-  "keywords": [],
+  "keywords": [
+    "telegram",
+    "instagram",
+    "downloader"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "https-proxy-agent": "^9.1.0",
+    "pg": "^8.16.3",
     "telegraf": "^4.16.3",
     "yt-dlp-exec": "^1.0.2"
   }
