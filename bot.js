@@ -1,4 +1,4 @@
-[9/17/2026 11:02 PM] DEVIL: const { Telegraf, Markup } = require('telegraf');
+const { Telegraf, Markup } = require('telegraf');
 const { Pool } = require('pg');
 const ytDlp = require('yt-dlp-exec');
 const fs = require('fs');
