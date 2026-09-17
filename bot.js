@@ -15,15 +15,22 @@ const bot = new Telegraf(BOT_TOKEN);
 
 function mainMenu() {
   return Markup.keyboard([
-    ['📥 دانلود پست / ریلز'],
+    ['▶️ شروع', '📥 دانلود پست / ریلز'],
     ['👤 دانلود از پروفایل'],
     ['ℹ️ راهنما']
-  ])
-    .resize()
-    .persistent();
+  ]).resize();
 }
 
 bot.start(async (ctx) => {
+  await ctx.reply(
+    '🤖 Zeka Downloader\n\n' +
+    'به زکا خوش آمدی 👋\n\n' +
+    'یکی از گزینه‌های زیر را انتخاب کن:',
+    mainMenu()
+  );
+});
+
+bot.hears('▶️ شروع', async (ctx) => {
   await ctx.reply(
     '🤖 Zeka Downloader\n\n' +
     'یکی از گزینه‌ها را انتخاب کن:',
@@ -39,15 +46,15 @@ bot.hears('📥 دانلود پست / ریلز', async (ctx) => {
 
 bot.hears('👤 دانلود از پروفایل', async (ctx) => {
   await ctx.reply(
-    '👤 لینک پروفایل یا @username را بفرست.'
+    '👤 لینک پروفایل یا @username اینستاگرام را بفرست.'
   );
 });
 
 bot.hears('ℹ️ راهنما', async (ctx) => {
   await ctx.reply(
     'ℹ️ راهنمای Zeka\n\n' +
-    '📥 برای دانلود پست یا ریلز، لینک آن را بفرست.\n\n' +
-    '👤 برای دانلود از پروفایل، لینک یا نام کاربری را بفرست.\n\n' +
+    '📥 لینک پست یا ریلز عمومی را بفرست.\n\n' +
+    '👤 لینک یا @username پروفایل عمومی را بفرست.\n\n' +
     '🔒 پروفایل خصوصی قابل دانلود نیست.'
   );
 });
@@ -56,20 +63,18 @@ bot.on('text', async (ctx) => {
   const text = ctx.message.text.trim();
 
   if (
+    text === '▶️ شروع' ||
     text === '📥 دانلود پست / ریلز' ||
     text === '👤 دانلود از پروفایل' ||
-    text === 'ℹ️ راهنما'
+    text === 'ℹ️ راهنما' ||
+    text.startsWith('/')
   ) {
-    return;
-  }
-
-  if (text.startsWith('/')) {
     return;
   }
 
   if (!text.includes('instagram.com')) {
     await ctx.reply(
-      '❌ لطفاً یک لینک معتبر اینستاگرام بفرست.',
+      '❌ لطفاً لینک معتبر اینستاگرام بفرست.',
       mainMenu()
     );
     return;
@@ -111,13 +116,19 @@ bot.on('text', async (ctx) => {
     );
 
   } catch (error) {
-    console.error('DOWNLOAD ERROR:', error);
+    console.error(
+      'DOWNLOAD ERROR:',
+      error
+    );
 
     if (fs.existsSync(filePath)) {
       try {
         fs.unlinkSync(filePath);
       } catch (e) {
-        console.error('DELETE ERROR:', e);
+        console.error(
+          'DELETE ERROR:',
+          e
+        );
       }
     }
 
@@ -138,9 +149,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(
-    'HTTP server running on port ' + PORT
-  );
+  console.log('HTTP server running on port ' + PORT);
 });
 
 bot.launch()
@@ -148,10 +157,7 @@ bot.launch()
     console.log('ربات روشن شد');
   })
   .catch((error) => {
-    console.error(
-      'BOT ERROR:',
-      error
-    );
+    console.error('BOT ERROR:', error);
   });
 
 process.once('SIGINT', () => {
