@@ -5,10 +5,6 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
-// ================================
-// Environment Variables
-// ================================
-
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const DATABASE_URL = process.env.DATABASE_URL;
 
@@ -22,15 +18,7 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-// ================================
-// Telegram Bot
-// ================================
-
 const bot = new Telegraf(BOT_TOKEN);
-
-// ================================
-// PostgreSQL
-// ================================
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
@@ -39,16 +27,8 @@ const pool = new Pool({
   }
 });
 
-// ================================
-// Settings
-// ================================
-
 const DAILY_LIMIT = 12;
 const REFERRAL_BONUS = 12;
-
-// ================================
-// Keyboard
-// ================================
 
 const mainKeyboard = Markup.keyboard([
   ['▶️ شروع'],
@@ -64,7 +44,7 @@ const mainKeyboard = Markup.keyboard([
 // ================================
 
 async function initDatabase() {
-  await pool.query(
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       user_id TEXT PRIMARY KEY,
       username TEXT,
@@ -76,14 +56,10 @@ async function initDatabase() {
       referred_by TEXT,
       created_at TIMESTAMP DEFAULT NOW()
     )
-  );
+  `);
 
   console.log('✅ Database آماده است.');
 }
-
-// ================================
-// User
-// ================================
 
 async function getUser(userId) {
   const result = await pool.query(
@@ -91,16 +67,15 @@ async function getUser(userId) {
     [String(userId)]
   );
 
-  return result.rows[0] || null;
+  return result.rows[0] ?? null;
 }
 
 async function createUser(ctx, referredBy = null) {
   const userId = String(ctx.from.id);
 
   const result = await pool.query(
-    
-    INSERT INTO users
-    (
+    `
+    INSERT INTO users (
       user_id,
       username,
       first_name,
@@ -109,16 +84,16 @@ async function createUser(ctx, referredBy = null) {
     VALUES ($1, $2, $3, $4)
     ON CONFLICT (user_id) DO NOTHING
     RETURNING *
-    ,
+    `,
     [
       userId,
-      ctx.from.username || null,
-      ctx.from.first_name || null,
+      ctx.from.username ?? null,
+      ctx.from.first_name ?? null,
       referredBy
     ]
   );
 
-  return result.rows[0] || await getUser(userId);
+  return result.rows[0] ?? await getUser(userId);
 }
 
 // ================================
@@ -140,17 +115,20 @@ async function refreshDailyLimit(userId) {
   const now = new Date();
   const periodStart = new Date(user.period_start);
 
-  const difference = now.getTime() - periodStart.getTime();
-  const twentyFourHours = 24 * 60 * 60 * 1000;
+  const difference =
+    now.getTime() - periodStart.getTime();
+
+  const twentyFourHours =
+    24 * 60 * 60 * 1000;
 
   if (difference >= twentyFourHours) {
     await pool.query(
-      
+      `
       UPDATE users
       SET daily_used = 0,
           period_start = NOW()
       WHERE user_id = $1
-      ,
+      `,
       [String(userId)]
     );
 
@@ -163,10 +141,6 @@ async function refreshDailyLimit(userId) {
   return user;
 }
 
-// ================================
-// Ensure User
-// ================================
-
 async function ensureUser(ctx) {
   let user = await getUser(ctx.from.id);
 
@@ -178,10 +152,6 @@ async function ensureUser(ctx) {
 
   return user;
 }
-
-// ================================
-// Quota
-// ================================
 
 async function getQuota(userId) {
   const user = await refreshDailyLimit(userId);
@@ -198,12 +168,10 @@ async function getQuota(userId) {
   return {
     dailyRemaining,
     bonusRemaining: user.bonus_downloads,
-    totalRemaining: dailyRemaining + user.bonus_downloads
+    totalRemaining:
+      dailyRemaining + user.bonus_downloads
   };
 }
-[9/17/2026 11:02 PM] DEVIL: // ================================
-// Consume Download
-// ================================
 
 async function consumeDownload(userId) {
   const user = await refreshDailyLimit(userId);
@@ -212,30 +180,29 @@ async function consumeDownload(userId) {
     return false;
   }
 
-  const dailyRemaining = DAILY_LIMIT - user.daily_used;
+  const dailyRemaining =
+    DAILY_LIMIT - user.daily_used;
 
-  // اول از سهمیه روزانه استفاده می‌کنیم
   if (dailyRemaining > 0) {
     await pool.query(
-      
+      `
       UPDATE users
       SET daily_used = daily_used + 1
       WHERE user_id = $1
-      ,
+      `,
       [String(userId)]
     );
 
     return true;
   }
 
-  // بعد از بونوس استفاده می‌کنیم
   if (user.bonus_downloads > 0) {
     await pool.query(
-      
+      `
       UPDATE users
       SET bonus_downloads = bonus_downloads - 1
       WHERE user_id = $1
-      ,
+      `,
       [String(userId)]
     );
 
@@ -244,10 +211,6 @@ async function consumeDownload(userId) {
 
   return false;
 }
-
-// ================================
-// Refund Download
-// ================================
 
 async function refundDownload(userId) {
   const user = await refreshDailyLimit(userId);
@@ -258,18 +221,18 @@ async function refundDownload(userId) {
 
   if (user.daily_used > 0) {
     await pool.query(
-      
+      `
       UPDATE users
       SET daily_used = daily_used - 1
       WHERE user_id = $1
-      ,
+      `,
       [String(userId)]
     );
   }
 }
 
 // ================================
-// Referral
+// Referral System
 // ================================
 
 async function processReferral(ctx, referralCode) {
@@ -280,7 +243,6 @@ async function processReferral(ctx, referralCode) {
   const newUserId = String(ctx.from.id);
   const referrerId = String(referralCode);
 
-  // دعوت کردن خودش ممنوع
   if (newUserId === referrerId) {
     return;
   }
@@ -291,7 +253,6 @@ async function processReferral(ctx, referralCode) {
     return;
   }
 
-  // اگر قبلاً کسی معرف بوده، دوباره پاداش نده
   if (newUser.referred_by) {
     return;
   }
@@ -303,28 +264,28 @@ async function processReferral(ctx, referralCode) {
   }
 
   await pool.query(
-    
+    `
     UPDATE users
     SET referred_by = $1
     WHERE user_id = $2
       AND referred_by IS NULL
-    ,
+    `,
     [referrerId, newUserId]
   );
 
   await pool.query(
-    
+    `
     UPDATE users
     SET
       bonus_downloads = bonus_downloads + $1,
       referrals = referrals + 1
     WHERE user_id = $2
-    ,
+    `,
     [REFERRAL_BONUS, referrerId]
   );
 
   console.log(
-    🎁 Referral: ${referrerId} invited ${newUserId}
+    `🎁 Referral: ${referrerId} invited ${newUserId}`
   );
 }
 
@@ -334,9 +295,10 @@ async function processReferral(ctx, referralCode) {
 
 bot.start(async (ctx) => {
   try {
-    const payload = ctx.startPayload || null;
+    const payload = ctx.startPayload ?? null;
 
-    const existingUser = await getUser(ctx.from.id);
+    const existingUser =
+      await getUser(ctx.from.id);
 
     if (!existingUser) {
       await createUser(ctx, payload);
@@ -344,16 +306,19 @@ bot.start(async (ctx) => {
     }
 
     await ctx.reply(
-      سلام ${ctx.from.first_name || ''} 👋
+      `سلام ${ctx.from.first_name ?? ''} 👋
 
 به ربات دانلود اینستاگرام خوش اومدی.
 
-لینک پست یا ریلز اینستاگرام رو بفرست تا برات دانلود کنم. 📥,
+لینک پست یا ریلز اینستاگرام رو بفرست تا برات دانلود کنم. 📥`,
       mainKeyboard
     );
 
   } catch (error) {
-    console.error('Start error:', error);
+    console.error(
+      'Start error:',
+      error
+    );
 
     await ctx.reply(
       '❌ مشکلی پیش آمد. دوباره تلاش کن.'
@@ -365,67 +330,83 @@ bot.start(async (ctx) => {
 // شروع
 // ================================
 
-bot.hears('▶️ شروع', async (ctx) => {
-  await ctx.reply(
-    سلام 👋
+bot.hears(
+  '▶️ شروع',
+  async (ctx) => {
+    await ctx.reply(
+      `سلام 👋
 
-لینک پست یا ریلز اینستاگرام رو بفرست.,
-    mainKeyboard
-  );
-});
+لینک پست یا ریلز اینستاگرام رو بفرست.`,
+      mainKeyboard
+    );
+  }
+);
 
 // ================================
 // دانلود پست / ریلز
 // ================================
 
-bot.hears('📥 دانلود پست / ریلز', async (ctx) => {
-  await ctx.reply(
-    📥 لینک پست یا ریلز اینستاگرام رو بفرست.
+bot.hears(
+  '📥 دانلود پست / ریلز',
+  async (ctx) => {
+    await ctx.reply(
+      `📥 لینک پست یا ریلز اینستاگرام رو بفرست.
 
 مثال:
-https://www.instagram.com/reel/...
-  );
-});
+https://www.instagram.com/reel/...`
+    );
+  }
+);
 
 // ================================
-// سهمیه
+// سهمیه من
 // ================================
 
-bot.hears('📊 سهمیه من', async (ctx) => {
-  try {
-    const user = await ensureUser(ctx);
-    const quota = await getQuota(user.user_id);
+bot.hears(
+  '📊 سهمیه من',
+  async (ctx) => {
+    try {
+      const user = await ensureUser(ctx);
+      const quota = await getQuota(user.user_id);
 
-    await ctx.reply(
-      📊 سهمیه شما
+      await ctx.reply(
+        `📊 سهمیه شما
 
 🔹 سهمیه روزانه باقی‌مانده: ${quota.dailyRemaining}
 🎁 دانلود هدیه باقی‌مانده: ${quota.bonusRemaining}
 
-📥 مجموع قابل استفاده: ${quota.totalRemaining}
-    );
+📥 مجموع قابل استفاده: ${quota.totalRemaining}`
+      );
 
-  } catch (error) {
-    console.error('Quota error:', error);
+    } catch (error) {
+      console.error(
+        'Quota error:',
+        error
+      );
 
-    await ctx.reply(
-      '❌ دریافت سهمیه انجام نشد.'
-    );
+      await ctx.reply(
+        '❌ دریافت سهمیه انجام نشد.'
+      );
+    }
   }
-});
+);
 
 // ================================
 // دعوت دوستان
 // ================================
-[9/17/2026 11:02 PM] DEVIL: bot.hears('🎁 دعوت دوستان', async (ctx) => {
-  try {
-    const botInfo = await ctx.telegram.getMe();
 
-    const link =
-      https://t.me/${botInfo.username}?start=${ctx.from.id};
+bot.hears(
+  '🎁 دعوت دوستان',
+  async (ctx) => {
+    try {
+      const botInfo =
+        await ctx.telegram.getMe();
 
-    await ctx.reply(
-      🎁 دعوت دوستان
+      const link =
+        `https://t.me/${botInfo.username}?start=${ctx.from.id}`;
+
+      await ctx.reply(
+        `🎁 دعوت دوستان
 
 با دعوت هر نفر، ${REFERRAL_BONUS} دانلود هدیه می‌گیری.
 
@@ -433,25 +414,31 @@ bot.hears('📊 سهمیه من', async (ctx) => {
 
 ${link}
 
-👥 لینک رو برای دوستات بفرست.
-    );
+👥 لینک رو برای دوستات بفرست.`
+      );
 
-  } catch (error) {
-    console.error('Referral error:', error);
+    } catch (error) {
+      console.error(
+        'Referral error:',
+        error
+      );
 
-    await ctx.reply(
-      '❌ ساخت لینک دعوت انجام نشد.'
-    );
+      await ctx.reply(
+        '❌ ساخت لینک دعوت انجام نشد.'
+      );
+    }
   }
-});
+);
 
 // ================================
 // راهنما
 // ================================
 
-bot.hears('ℹ️ راهنما', async (ctx) => {
-  await ctx.reply(
-    ℹ️ راهنمای ربات
+bot.hears(
+  'ℹ️ راهنما',
+  async (ctx) => {
+    await ctx.reply(
+      `ℹ️ راهنمای ربات
 
 📥 برای دانلود:
 لینک پست یا ریلز اینستاگرام رو ارسال کن.
@@ -463,19 +450,23 @@ bot.hears('ℹ️ راهنما', async (ctx) => {
 با دعوت هر کاربر ${REFERRAL_BONUS} دانلود هدیه می‌گیری.
 
 👤 دانلود از پروفایل:
-این قابلیت فعلاً در حال توسعه است.
-  );
-});
+این قابلیت فعلاً در حال توسعه است.`
+    );
+  }
+);
 
 // ================================
 // دانلود از پروفایل
 // ================================
 
-bot.hears('👤 دانلود از پروفایل', async (ctx) => {
-  await ctx.reply(
-    '👤 قابلیت دانلود کامل پروفایل هنوز فعال نشده است.'
-  );
-});
+bot.hears(
+  '👤 دانلود از پروفایل',
+  async (ctx) => {
+    await ctx.reply(
+      '👤 قابلیت دانلود کامل پروفایل هنوز فعال نشده است.'
+    );
+  }
+);
 
 // ================================
 // Instagram URL Handler
@@ -484,7 +475,6 @@ bot.hears('👤 دانلود از پروفایل', async (ctx) => {
 bot.on('text', async (ctx) => {
   const text = ctx.message.text.trim();
 
-  // اگر پیام یکی از دکمه‌ها بود، اینجا کاری نکن
   const buttons = [
     '▶️ شروع',
     '📥 دانلود پست / ریلز',
@@ -498,7 +488,6 @@ bot.on('text', async (ctx) => {
     return;
   }
 
-  // بررسی لینک اینستاگرام
   if (!text.includes('instagram.com')) {
     await ctx.reply(
       '❌ لطفاً یک لینک معتبر از اینستاگرام ارسال کن.'
@@ -509,25 +498,28 @@ bot.on('text', async (ctx) => {
 
   const user = await ensureUser(ctx);
 
-  // بررسی سهمیه
-  const allowed = await consumeDownload(user.user_id);
+  const allowed =
+    await consumeDownload(user.user_id);
 
   if (!allowed) {
     await ctx.reply(
-      ❌ سهمیه دانلود شما تمام شده است.
+      `❌ سهمیه دانلود شما تمام شده است.
 
 📊 برای دیدن سهمیه:
 روی «📊 سهمیه من» بزن.
 
 🎁 برای دریافت دانلود بیشتر:
-از «🎁 دعوت دوستان» استفاده کن.
+از «🎁 دعوت دوستان» استفاده کن.`
     );
 
     return;
   }
 
-  const fileName = instagram_${ctx.from.id}_${Date.now()}.mp4;
-  const filePath = path.join('/tmp', fileName);
+  const fileName =
+    `instagram_${ctx.from.id}_${Date.now()}.mp4`;
+
+  const filePath =
+    path.join('/tmp', fileName);
 
   try {
     await ctx.reply(
@@ -541,13 +533,18 @@ bot.on('text', async (ctx) => {
     });
 
     if (!fs.existsSync(filePath)) {
-      throw new Error('Downloaded file not found');
+      throw new Error(
+        'Downloaded file not found'
+      );
     }
 
-    const stats = fs.statSync(filePath);
+    const stats =
+      fs.statSync(filePath);
 
     if (stats.size === 0) {
-      throw new Error('Downloaded file is empty');
+      throw new Error(
+        'Downloaded file is empty'
+      );
     }
 
     await ctx.replyWithVideo(
@@ -560,19 +557,22 @@ bot.on('text', async (ctx) => {
     );
 
   } catch (error) {
-    console.error('Download error:', error);
+    console.error(
+      'Download error:',
+      error
+    );
 
-    // برگرداندن سهمیه
-    await refundDownload(user.user_id);
+    await refundDownload(
+      user.user_id
+    );
 
     await ctx.reply(
-      ❌ دانلود انجام نشد.
+      `❌ دانلود انجام نشد.
 
-ممکنه لینک خصوصی باشه، پست حذف شده باشه یا اینستاگرام دسترسی دانلود رو محدود کرده باشه.
+ممکنه لینک خصوصی باشه، پست حذف شده باشه یا اینستاگرام دسترسی دانلود رو محدود کرده باشه.`
     );
 
   } finally {
-    // حذف فایل
     if (fs.existsSync(filePath)) {
       try {
         fs.unlinkSync(filePath);
@@ -604,7 +604,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(
-    HTTP server running on port ${PORT}
+    `HTTP server running on port ${PORT}`
   );
 });
 
@@ -633,7 +633,8 @@ async function startBot() {
 }
 
 startBot();
-[9/17/2026 11:02 PM] DEVIL: // ================================
+
+// ================================
 // Shutdown
 // ================================
 
