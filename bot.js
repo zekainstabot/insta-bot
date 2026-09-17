@@ -14,26 +14,13 @@ if (!BOT_TOKEN) {
 const bot = new Telegraf(BOT_TOKEN);
 
 function mainMenu() {
-  return Markup.inlineKeyboard([
-    [
-      Markup.button.callback(
-        '📥 دانلود پست / ریلز',
-        'download_post'
-      )
-    ],
-    [
-      Markup.button.callback(
-        '👤 دانلود از پروفایل',
-        'download_profile'
-      )
-    ],
-    [
-      Markup.button.callback(
-        'ℹ️ راهنما',
-        'help'
-      )
-    ]
-  ]);
+  return Markup.keyboard([
+    ['📥 دانلود پست / ریلز'],
+    ['👤 دانلود از پروفایل'],
+    ['ℹ️ راهنما']
+  ])
+    .resize()
+    .persistent();
 }
 
 bot.start(async (ctx) => {
@@ -44,31 +31,23 @@ bot.start(async (ctx) => {
   );
 });
 
-bot.action('download_post', async (ctx) => {
-  await ctx.answerCbQuery();
-
+bot.hears('📥 دانلود پست / ریلز', async (ctx) => {
   await ctx.reply(
     '📥 لینک پست یا ریلز اینستاگرام را بفرست.'
   );
 });
 
-bot.action('download_profile', async (ctx) => {
-  await ctx.answerCbQuery();
-
+bot.hears('👤 دانلود از پروفایل', async (ctx) => {
   await ctx.reply(
-    '👤 لینک پروفایل یا @username اینستاگرام را بفرست.'
+    '👤 لینک پروفایل یا @username را بفرست.'
   );
 });
 
-bot.action('help', async (ctx) => {
-  await ctx.answerCbQuery();
-
+bot.hears('ℹ️ راهنما', async (ctx) => {
   await ctx.reply(
     'ℹ️ راهنمای Zeka\n\n' +
-    '📥 دانلود پست / ریلز:\n' +
-    'لینک پست یا ریلز عمومی اینستاگرام را بفرست.\n\n' +
-    '👤 دانلود از پروفایل:\n' +
-    'لینک یا نام کاربری پروفایل عمومی را بفرست.\n\n' +
+    '📥 برای دانلود پست یا ریلز، لینک آن را بفرست.\n\n' +
+    '👤 برای دانلود از پروفایل، لینک یا نام کاربری را بفرست.\n\n' +
     '🔒 پروفایل خصوصی قابل دانلود نیست.'
   );
 });
@@ -76,21 +55,21 @@ bot.action('help', async (ctx) => {
 bot.on('text', async (ctx) => {
   const text = ctx.message.text.trim();
 
-  if (text.startsWith('/')) {
+  if (
+    text === '📥 دانلود پست / ریلز' ||
+    text === '👤 دانلود از پروفایل' ||
+    text === 'ℹ️ راهنما'
+  ) {
     return;
   }
 
-  if (text.startsWith('@') && !text.includes(' ')) {
-    await ctx.reply(
-      '👤 پروفایل دریافت شد.\n\n' +
-      'دانلود کامل پروفایل را در مرحله بعد اضافه می‌کنیم.'
-    );
+  if (text.startsWith('/')) {
     return;
   }
 
   if (!text.includes('instagram.com')) {
     await ctx.reply(
-      '❌ لطفاً از منوی اصلی یکی از گزینه‌ها را انتخاب کن.',
+      '❌ لطفاً یک لینک معتبر اینستاگرام بفرست.',
       mainMenu()
     );
     return;
@@ -103,9 +82,7 @@ bot.on('text', async (ctx) => {
     path.join('/tmp', fileName);
 
   try {
-    await ctx.reply(
-      '⏳ در حال دانلود...'
-    );
+    await ctx.reply('⏳ در حال دانلود...');
 
     await ytDlp(text, {
       noPlaylist: true,
@@ -114,15 +91,11 @@ bot.on('text', async (ctx) => {
     });
 
     if (!fs.existsSync(filePath)) {
-      await ctx.reply(
-        '❌ فایل پیدا نشد.'
-      );
+      await ctx.reply('❌ فایل پیدا نشد.');
       return;
     }
 
-    await ctx.reply(
-      '📤 در حال ارسال...'
-    );
+    await ctx.reply('📤 در حال ارسال...');
 
     await ctx.replyWithVideo({
       source: filePath
@@ -133,24 +106,18 @@ bot.on('text', async (ctx) => {
     }
 
     await ctx.reply(
-      '✅ انجام شد.',
+      '✅ دانلود انجام شد.',
       mainMenu()
     );
 
   } catch (error) {
-    console.error(
-      'DOWNLOAD ERROR:',
-      error
-    );
+    console.error('DOWNLOAD ERROR:', error);
 
     if (fs.existsSync(filePath)) {
       try {
         fs.unlinkSync(filePath);
       } catch (e) {
-        console.error(
-          'DELETE ERROR:',
-          e
-        );
+        console.error('DELETE ERROR:', e);
       }
     }
 
