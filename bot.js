@@ -67,10 +67,10 @@ async function getUser(userId) {
     [String(userId)]
   );
 
-  return result.rows[0] ?? null;
+  return result.rows[0] || null;
 }
 
-async function createUser(ctx, referredBy = null) {
+async function createUser(ctx) {
   const userId = String(ctx.from.id);
 
   const result = await pool.query(
@@ -78,22 +78,20 @@ async function createUser(ctx, referredBy = null) {
     INSERT INTO users (
       user_id,
       username,
-      first_name,
-      referred_by
+      first_name
     )
-    VALUES ($1, $2, $3, $4)
+    VALUES ($1, $2, $3)
     ON CONFLICT (user_id) DO NOTHING
     RETURNING *
     `,
     [
       userId,
-      ctx.from.username ?? null,
-      ctx.from.first_name ?? null,
-      referredBy
+      ctx.from.username || null,
+      ctx.from.first_name || null
     ]
   );
 
-  return result.rows[0] ?? await getUser(userId);
+  return result.rows[0] || await getUser(userId);
 }
 
 // ================================
@@ -148,10 +146,12 @@ async function ensureUser(ctx) {
     user = await createUser(ctx);
   }
 
-  user = await refreshDailyLimit(ctx.from.id);
-
-  return user;
+  return await refreshDailyLimit(ctx.from.id);
 }
+
+// ================================
+// Quota
+// ================================
 
 async function getQuota(userId) {
   const user = await refreshDailyLimit(userId);
@@ -173,6 +173,8 @@ async function getQuota(userId) {
   };
 }
 
+// مقدار مصرف‌شده را مشخص می‌کنیم
+// daily یا bonus
 async function consumeDownload(userId) {
   const user = await refreshDailyLimit(userId);
 
@@ -193,7 +195,7 @@ async function consumeDownload(userId) {
       [String(userId)]
     );
 
-    return true;
+    return 'daily';
   }
 
   if (user.bonus_downloads > 0) {
@@ -206,24 +208,32 @@ async function consumeDownload(userId) {
       [String(userId)]
     );
 
-    return true;
+    return 'bonus';
   }
 
   return false;
 }
 
-async function refundDownload(userId) {
-  const user = await refreshDailyLimit(userId);
-
-  if (!user) {
-    return;
-  }
-
-  if (user.daily_used > 0) {
+// اگر دانلود شکست خورد، همان سهمیه برگردانده می‌شود
+async function refundDownload(userId, type) {
+  if (type === 'daily') {
     await pool.query(
       `
       UPDATE users
-      SET daily_used = daily_used - 1
+      SET daily_used = GREATEST(daily_used - 1, 0)
+      WHERE user_id = $1
+      `,
+      [String(userId)]
+    );
+
+    return;
+  }
+
+  if (type === 'bonus') {
+    await pool.query(
+      `
+      UPDATE users
+      SET bonus_downloads = bonus_downloads + 1
       WHERE user_id = $1
       `,
       [String(userId)]
@@ -247,31 +257,28 @@ async function processReferral(ctx, referralCode) {
     return;
   }
 
-  const newUser = await getUser(newUserId);
-
-  if (!newUser) {
-    return;
-  }
-
-  if (newUser.referred_by) {
-    return;
-  }
-
   const referrer = await getUser(referrerId);
 
   if (!referrer) {
     return;
   }
 
-  await pool.query(
+  // فقط وقتی referred_by خالی است، ثبت می‌شود
+  // RETURNING باعث می‌شود فقط در صورت موفقیت پاداش بدهیم
+  const result = await pool.query(
     `
     UPDATE users
     SET referred_by = $1
     WHERE user_id = $2
       AND referred_by IS NULL
+    RETURNING user_id
     `,
     [referrerId, newUserId]
   );
+
+  if (result.rowCount === 0) {
+    return;
+  }
 
   await pool.query(
     `
@@ -295,18 +302,22 @@ async function processReferral(ctx, referralCode) {
 
 bot.start(async (ctx) => {
   try {
-    const payload = ctx.startPayload ?? null;
+    const payload = ctx.startPayload || null;
 
-    const existingUser =
-      await getUser(ctx.from.id);
+    let user = await getUser(ctx.from.id);
 
-    if (!existingUser) {
-      await createUser(ctx, payload);
-      await processReferral(ctx, payload);
+    if (!user) {
+      // اول کاربر ساخته می‌شود
+      // بعد سیستم دعوت اجرا می‌شود
+      user = await createUser(ctx);
+
+      if (payload) {
+        await processReferral(ctx, payload);
+      }
     }
 
     await ctx.reply(
-      `سلام ${ctx.from.first_name ?? ''} 👋
+      `سلام ${ctx.from.first_name || ''} 👋
 
 به ربات دانلود اینستاگرام خوش اومدی.
 
@@ -315,10 +326,7 @@ bot.start(async (ctx) => {
     );
 
   } catch (error) {
-    console.error(
-      'Start error:',
-      error
-    );
+    console.error('Start error:', error);
 
     await ctx.reply(
       '❌ مشکلی پیش آمد. دوباره تلاش کن.'
@@ -367,7 +375,22 @@ bot.hears(
   async (ctx) => {
     try {
       const user = await ensureUser(ctx);
+
+      if (!user) {
+        await ctx.reply(
+          '❌ اطلاعات کاربر پیدا نشد.'
+        );
+        return;
+      }
+
       const quota = await getQuota(user.user_id);
+
+      if (!quota) {
+        await ctx.reply(
+          '❌ دریافت سهمیه انجام نشد.'
+        );
+        return;
+      }
 
       await ctx.reply(
         `📊 سهمیه شما
@@ -379,10 +402,7 @@ bot.hears(
       );
 
     } catch (error) {
-      console.error(
-        'Quota error:',
-        error
-      );
+      console.error('Quota error:', error);
 
       await ctx.reply(
         '❌ دریافت سهمیه انجام نشد.'
@@ -418,10 +438,7 @@ ${link}
       );
 
     } catch (error) {
-      console.error(
-        'Referral error:',
-        error
-      );
+      console.error('Referral error:', error);
 
       await ctx.reply(
         '❌ ساخت لینک دعوت انجام نشد.'
@@ -473,121 +490,142 @@ bot.hears(
 // ================================
 
 bot.on('text', async (ctx) => {
-  const text = ctx.message.text.trim();
+  try {
+    const text = ctx.message.text.trim();
 
-  const buttons = [
-    '▶️ شروع',
-    '📥 دانلود پست / ریلز',
-    '👤 دانلود از پروفایل',
-    '📊 سهمیه من',
-    '🎁 دعوت دوستان',
-    'ℹ️ راهنما'
-  ];
+    const buttons = [
+      '▶️ شروع',
+      '📥 دانلود پست / ریلز',
+      '👤 دانلود از پروفایل',
+      '📊 سهمیه من',
+      '🎁 دعوت دوستان',
+      'ℹ️ راهنما'
+    ];
 
-  if (buttons.includes(text)) {
-    return;
-  }
+    if (buttons.includes(text)) {
+      return;
+    }
 
-  if (!text.includes('instagram.com')) {
-    await ctx.reply(
-      '❌ لطفاً یک لینک معتبر از اینستاگرام ارسال کن.'
-    );
+    if (!text.includes('instagram.com')) {
+      await ctx.reply(
+        '❌ لطفاً یک لینک معتبر از اینستاگرام ارسال کن.'
+      );
+      return;
+    }
 
-    return;
-  }
+    const user = await ensureUser(ctx);
 
-  const user = await ensureUser(ctx);
+    if (!user) {
+      await ctx.reply(
+        '❌ اطلاعات کاربر پیدا نشد.'
+      );
+      return;
+    }
 
-  const allowed =
-    await consumeDownload(user.user_id);
+    // مشخص می‌کند از سهمیه روزانه یا هدیه استفاده شده
+    const consumedType =
+      await consumeDownload(user.user_id);
 
-  if (!allowed) {
-    await ctx.reply(
-      `❌ سهمیه دانلود شما تمام شده است.
+    if (!consumedType) {
+      await ctx.reply(
+        `❌ سهمیه دانلود شما تمام شده است.
 
 📊 برای دیدن سهمیه:
 روی «📊 سهمیه من» بزن.
 
 🎁 برای دریافت دانلود بیشتر:
 از «🎁 دعوت دوستان» استفاده کن.`
-    );
-
-    return;
-  }
-
-  const fileName =
-    `instagram_${ctx.from.id}_${Date.now()}.mp4`;
-
-  const filePath =
-    path.join('/tmp', fileName);
-
-  try {
-    await ctx.reply(
-      '⏳ در حال دانلود و آماده‌سازی ویدیو...'
-    );
-
-    await ytDlp(text, {
-      noPlaylist: true,
-      format: 'best[ext=mp4]/best',
-      output: filePath
-    });
-
-    if (!fs.existsSync(filePath)) {
-      throw new Error(
-        'Downloaded file not found'
       );
+
+      return;
     }
 
-    const stats =
-      fs.statSync(filePath);
+    const fileName =
+      `instagram_${ctx.from.id}_${Date.now()}.mp4`;
 
-    if (stats.size === 0) {
-      throw new Error(
-        'Downloaded file is empty'
+    const filePath =
+      path.join('/tmp', fileName);
+
+    try {
+      await ctx.reply(
+        '⏳ در حال دانلود و آماده‌سازی ویدیو...'
       );
-    }
 
-    await ctx.replyWithVideo(
-      {
-        source: filePath
-      },
-      {
-        caption: '✅ دانلود شد'
+      await ytDlp(text, {
+        noPlaylist: true,
+        format: 'best[ext=mp4]/best',
+        output: filePath
+      });
+
+      if (!fs.existsSync(filePath)) {
+        throw new Error(
+          'Downloaded file not found'
+        );
       }
-    );
+
+      const stats =
+        fs.statSync(filePath);
+
+      if (stats.size === 0) {
+        throw new Error(
+          'Downloaded file is empty'
+        );
+      }
+
+      await ctx.replyWithVideo(
+        {
+          source: filePath
+        },
+        {
+          caption: '✅ دانلود شد'
+        }
+      );
+
+    } catch (error) {
+      console.error(
+        'Download error:',
+        error
+      );
+
+      // فقط همان سهمیه‌ای که مصرف شده برمی‌گردد
+      await refundDownload(
+        user.user_id,
+        consumedType
+      );
+
+      await ctx.reply(
+        `❌ دانلود انجام نشد.
+
+ممکنه لینک خصوصی باشه، پست حذف شده باشه یا اینستاگرام دسترسی دانلود رو محدود کرده باشه.`
+      );
+
+    } finally {
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (deleteError) {
+          console.error(
+            'File delete error:',
+            deleteError
+          );
+        }
+      }
+    }
 
   } catch (error) {
     console.error(
-      'Download error:',
+      'Instagram handler error:',
       error
     );
 
-    await refundDownload(
-      user.user_id
-    );
-
     await ctx.reply(
-      `❌ دانلود انجام نشد.
-
-ممکنه لینک خصوصی باشه، پست حذف شده باشه یا اینستاگرام دسترسی دانلود رو محدود کرده باشه.`
+      '❌ خطایی هنگام پردازش درخواست رخ داد.'
     );
-
-  } finally {
-    if (fs.existsSync(filePath)) {
-      try {
-        fs.unlinkSync(filePath);
-      } catch (deleteError) {
-        console.error(
-          'File delete error:',
-          deleteError
-        );
-      }
-    }
   }
 });
 
 // ================================
-// HTTP Server - Render
+// HTTP Server
 // ================================
 
 const PORT = process.env.PORT || 3000;
