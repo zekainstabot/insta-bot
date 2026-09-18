@@ -903,6 +903,17 @@ try {
     }
   );
 
+      {
+      caption: caption || '✅ دانلود شد'
+    }
+  );
+
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+
+    } catch (error) {
+  
     } catch (error) {
       console.error(
         'Download error:',
