@@ -456,21 +456,20 @@ bot.hears('🎁 مدیریت سهمیه', async (ctx) => {
   );
 });
 
-// دریافت آیدی و تعداد سهمیه
+// دریافت سهمیه با username
 bot.on('text', async (ctx) => {
   if (!isAdmin(ctx)) {
     return;
   }
 
   const text = ctx.message.text.trim();
-
-  const match = text.match(/^(\d+)\s+(\d+)$/);
+  const match = text.match(/^@([A-Za-z0-9_]+)\s+(\d+)$/);
 
   if (!match) {
     return;
   }
 
-  const userId = match[1];
+  const username = match[1];
   const amount = parseInt(match[2], 10);
 
   try {
@@ -478,21 +477,22 @@ bot.on('text', async (ctx) => {
       `
       UPDATE users
       SET bonus_downloads = bonus_downloads + $1
-      WHERE user_id = $2
-      RETURNING user_id, bonus_downloads
+      WHERE LOWER(username) = LOWER($2)
+      RETURNING user_id, username, bonus_downloads
       `,
-      [amount, userId]
+      [amount, username]
     );
 
     if (result.rows.length === 0) {
-      return ctx.reply('❌ کاربری با این آیدی پیدا نشد.');
+      return ctx.reply('❌ کاربری با این username پیدا نشد.');
     }
 
     await ctx.reply(
-      `✅ سهمیه با موفقیت اضافه شد.\n\n` +
-      `🆔 آیدی: ${result.rows[0].user_id}\n` +
-      `🎁 سهمیه اضافه‌شده: ${amount}\n` +
-      `📥 سهمیه هدیه فعلی: ${result.rows[0].bonus_downloads}`
+      `✅ سهمیه با موفقیت اضافه شد.
+
+👤 @${result.rows[0].username}
+🎁 سهمیه اضافه‌شده: ${amount}
+📥 سهمیه هدیه فعلی: ${result.rows[0].bonus_downloads}`
     );
 
   } catch (error) {
