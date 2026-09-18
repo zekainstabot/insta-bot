@@ -693,6 +693,89 @@ bot.hears(
 // Instagram URL Handler
 // ================================
 
+// ================================
+// 📢 Broadcast Handler
+// ================================
+
+let broadcastMode = false;
+
+bot.hears('📢 پیام همگانی', async (ctx) => {
+  if (!isAdmin(ctx)) {
+    return ctx.reply('⛔️ دسترسی ندارید.');
+  }
+
+  broadcastMode = true;
+
+  await ctx.reply(
+    '📢 پیام همگانی\n\n' +
+    'متنی که می‌خواهید برای همه کاربران ارسال شود را بفرستید.\n\n' +
+    '❌ برای لغو، بنویسید: لغو'
+  );
+});
+
+bot.on('text', async (ctx, next) => {
+  if (!isAdmin(ctx) || !broadcastMode) {
+    return next();
+  }
+
+  const text = ctx.message.text.trim();
+
+  if (text === 'لغو') {
+    broadcastMode = false;
+
+    return ctx.reply(
+      '❌ ارسال پیام همگانی لغو شد.'
+    );
+  }
+
+  broadcastMode = false;
+
+  try {
+    const result = await pool.query(
+      'SELECT user_id FROM users WHERE blocked = FALSE'
+    );
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    await ctx.reply(
+      `📢 ارسال پیام به ${result.rows.length} کاربر شروع شد...`
+    );
+
+    for (const user of result.rows) {
+      try {
+        await ctx.telegram.sendMessage(
+          user.user_id,
+          text
+        );
+
+        successCount++;
+      } catch (error) {
+        failedCount++;
+
+        console.error(
+          `Broadcast failed for ${user.user_id}:`,
+          error.message
+        );
+      }
+    }
+
+    await ctx.reply(
+      `✅ پیام همگانی ارسال شد.
+
+📨 موفق: ${successCount}
+❌ ناموفق: ${failedCount}`
+    );
+
+  } catch (error) {
+    console.error('Broadcast error:', error);
+
+    await ctx.reply(
+      '❌ هنگام ارسال پیام همگانی خطایی رخ داد.'
+    );
+  }
+});
+
 bot.on('text', async (ctx) => {
   try {
     const text = ctx.message.text.trim();
