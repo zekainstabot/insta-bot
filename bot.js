@@ -68,7 +68,7 @@ async function initDatabase() {
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS blocked BOOLEAN DEFAULT FALSE
   `);
-}
+
   console.log('✅ Database آماده است.');
 }
 
