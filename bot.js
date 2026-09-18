@@ -51,7 +51,16 @@ const mainKeyboard = Markup.keyboard([
 async function initDatabase() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
-      ...
+      user_id TEXT PRIMARY KEY,
+      username TEXT,
+      first_name TEXT,
+      daily_used INTEGER DEFAULT 0,
+      period_start TIMESTAMP DEFAULT NOW(),
+      bonus_downloads INTEGER DEFAULT 0,
+      blocked BOOLEAN DEFAULT FALSE,
+      referrals INTEGER DEFAULT 0,
+      referred_by TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
     )
   `);
 
@@ -60,7 +69,6 @@ async function initDatabase() {
     ADD COLUMN IF NOT EXISTS blocked BOOLEAN DEFAULT FALSE
   `);
 }
-  
   console.log('✅ Database آماده است.');
 }
 
