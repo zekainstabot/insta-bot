@@ -573,12 +573,19 @@ bot.hears(
     try {
       const user = await ensureUser(ctx);
 
-      if (!user) {
-        await ctx.reply(
-          '❌ اطلاعات کاربر پیدا نشد.'
-        );
-        return;
-      }
+if (!user) {
+  await ctx.reply(
+    '❌ اطلاعات کاربر پیدا نشد.'
+  );
+  return;
+}
+
+if (user.blocked) {
+  await ctx.reply(
+    '🚫 دسترسی شما به دانلود مسدود شده است.'
+  );
+  return;
+}
 
       const quota = await getQuota(user.user_id);
 
