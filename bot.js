@@ -855,52 +855,53 @@ if (user.blocked) {
       return;
     }
 
-    const fileName = `instagram_${Date.now()}.mp4`;
-    const filePath =
-      path.join('/tmp', fileName);
+ const fileName = `instagram_${Date.now()}.mp4`;
+const filePath =
+  path.join('/tmp', fileName);
 
-    try {
-      await ctx.reply(
-        '⏳ در حال دانلود و آماده‌سازی ویدیو...'
-      );
+try {
+  await ctx.reply(
+    '⏳ در حال دانلود و آماده‌سازی ویدیو...'
+  );
 
-      const videoInfo = await ytDlp(text, {
-  noPlaylist: true,
-  dumpSingleJson: true,
-  skipDownload: true
-});
+  const videoInfo = await ytDlp(text, {
+    noPlaylist: true,
+    dumpSingleJson: true,
+    skipDownload: true
+  });
 
-const caption = videoInfo.description || 'بدون کپشن';
+  const caption =
+    videoInfo.description || 'بدون کپشن';
 
-await ytDlp(text, {
-  noPlaylist: true,
-  format: 'best[ext=mp4]/best',
-  output: filePath
-});
+  await ytDlp(text, {
+    noPlaylist: true,
+    format: 'best[ext=mp4]/best',
+    output: filePath
+  });
 
-      if (!fs.existsSync(filePath)) {
-        throw new Error(
-          'Downloaded file not found'
-        );
-      }
-
-      const stats =
-        fs.statSync(filePath);
-
-      if (stats.size === 0) {
-        throw new Error(
-          'Downloaded file is empty'
-        );
-      }
-
-      await ctx.replyWithVideo(
-  {
-    source: filePath
-  },
-  {
-    caption: caption || '✅ دانلود شد'
+  if (!fs.existsSync(filePath)) {
+    throw new Error(
+      'Downloaded file not found'
+    );
   }
-);
+
+  const stats =
+    fs.statSync(filePath);
+
+  if (stats.size === 0) {
+    throw new Error(
+      'Downloaded file is empty'
+    );
+  }
+
+  await ctx.replyWithVideo(
+    {
+      source: filePath
+    },
+    {
+      caption: caption || '✅ دانلود شد'
+    }
+  );
 
     } catch (error) {
       console.error(
