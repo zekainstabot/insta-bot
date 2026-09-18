@@ -776,6 +776,21 @@ bot.on('text', async (ctx, next) => {
   }
 });
 
+bot.hears('🔙 بازگشت', async (ctx) => {
+  if (!isAdmin(ctx)) {
+    return ctx.reply('⛔️ دسترسی ندارید.');
+  }
+
+  await ctx.reply(
+    '🏠 به منوی اصلی برگشتی.',
+    Markup.keyboard([
+      ['▶️ شروع', '📥 دانلود پست / ریلز'],
+      ['👤 دانلود از پروفایل', '📊 سهمیه من'],
+      ['🎁 دعوت دوستان', 'ℹ️ راهنما']
+    ]).resize()
+  );
+});
+
 bot.on('text', async (ctx) => {
   try {
     const text = ctx.message.text.trim();
