@@ -456,6 +456,51 @@ bot.hears('🎁 مدیریت سهمیه', async (ctx) => {
   );
 });
 
+// دریافت آیدی و تعداد سهمیه
+bot.on('text', async (ctx) => {
+  if (!isAdmin(ctx)) {
+    return;
+  }
+
+  const text = ctx.message.text.trim();
+
+  const match = text.match(/^(\d+)\s+(\d+)$/);
+
+  if (!match) {
+    return;
+  }
+
+  const userId = match[1];
+  const amount = parseInt(match[2], 10);
+
+  try {
+    const result = await pool.query(
+      `
+      UPDATE users
+      SET bonus_downloads = bonus_downloads + $1
+      WHERE user_id = $2
+      RETURNING user_id, bonus_downloads
+      `,
+      [amount, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return ctx.reply('❌ کاربری با این آیدی پیدا نشد.');
+    }
+
+    await ctx.reply(
+      `✅ سهمیه با موفقیت اضافه شد.\n\n` +
+      `🆔 آیدی: ${result.rows[0].user_id}\n` +
+      `🎁 سهمیه اضافه‌شده: ${amount}\n` +
+      `📥 سهمیه هدیه فعلی: ${result.rows[0].bonus_downloads}`
+    );
+
+  } catch (error) {
+    console.error('Admin quota error:', error);
+    await ctx.reply('❌ هنگام تغییر سهمیه خطایی رخ داد.');
+  }
+});
+
 // ================================
 // شروع
 // ================================
