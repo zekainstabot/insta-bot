@@ -63,6 +63,7 @@ async function initDatabase() {
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
+  
   console.log('✅ Database آماده است.');
 }
 
