@@ -392,6 +392,53 @@ bot.hears('📊 آمار ربات', async (ctx) => {
   }
 });
 // ================================
+// کاربران
+// ================================
+
+bot.hears('👥 کاربران', async (ctx) => {
+  if (!isAdmin(ctx)) {
+    return ctx.reply('⛔️ دسترسی ندارید.');
+  }
+
+  try {
+    const result = await pool.query(`
+      SELECT
+        user_id,
+        username,
+        first_name,
+        daily_used,
+        bonus_downloads,
+        referrals,
+        created_at
+      FROM users
+      ORDER BY created_at DESC
+      LIMIT 20
+    `);
+
+    if (result.rows.length === 0) {
+      return ctx.reply('👥 هنوز کاربری ثبت نشده است.');
+    }
+
+    let message = '👥 آخرین کاربران:\n\n';
+
+    result.rows.forEach((user, index) => {
+      message += `${index + 1}. ${user.first_name || 'بدون نام'}`;
+      message += `\n🆔 ${user.user_id}`;
+      message += `\n👤 @${user.username || 'ندارد'}`;
+      message += `\n📥 مصرف امروز: ${user.daily_used}`;
+      message += `\n🎁 هدیه: ${user.bonus_downloads}`;
+      message += `\n🤝 دعوت‌ها: ${user.referrals}`;
+      message += `\n────────────\n`;
+    });
+
+    await ctx.reply(message);
+
+  } catch (error) {
+    console.error('Admin users error:', error);
+    await ctx.reply('❌ دریافت کاربران با خطا مواجه شد.');
+  }
+});
+// ================================
 // شروع
 // ================================
 
