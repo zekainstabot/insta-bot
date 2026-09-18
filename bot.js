@@ -894,13 +894,13 @@ await ytDlp(text, {
       }
 
       await ctx.replyWithVideo(
-        {
-          source: filePath
-        },
-        {
-          caption: caption
-        }
-      );
+  {
+    source: filePath
+  },
+  {
+    caption: caption || '✅ دانلود شد'
+  }
+);
 
     } catch (error) {
       console.error(
