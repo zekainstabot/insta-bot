@@ -864,11 +864,19 @@ if (user.blocked) {
         '⏳ در حال دانلود و آماده‌سازی ویدیو...'
       );
 
-      await ytDlp(text, {
-        noPlaylist: true,
-        format: 'best[ext=mp4]/best',
-        output: filePath
-      });
+      const videoInfo = await ytDlp(text, {
+  noPlaylist: true,
+  dumpSingleJson: true,
+  skipDownload: true
+});
+
+const caption = videoInfo.description || 'بدون کپشن';
+
+await ytDlp(text, {
+  noPlaylist: true,
+  format: 'best[ext=mp4]/best',
+  output: filePath
+});
 
       if (!fs.existsSync(filePath)) {
         throw new Error(
