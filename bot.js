@@ -7,6 +7,7 @@ const http = require('http');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const DATABASE_URL = process.env.DATABASE_URL;
+const ADMIN_ID = process.env.ADMIN_ID;
 
 if (!BOT_TOKEN) {
   console.error('❌ BOT_TOKEN تنظیم نشده است.');
