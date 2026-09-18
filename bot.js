@@ -512,11 +512,13 @@ bot.on('text', async (ctx) => {
 // ================================
 
 bot.hears('🚫 مدیریت کاربران', async (ctx) => {
+  console.log('🚫 مدیریت کاربران clicked');
+
   if (!isAdmin(ctx)) {
     return ctx.reply('⛔️ دسترسی ندارید.');
   }
 
-  await ctx.reply(
+  return ctx.reply(
     '🚫 مدیریت کاربران\n\n' +
     'برای مسدود کردن:\n' +
     'مسدود @username\n\n' +
