@@ -898,7 +898,7 @@ await ytDlp(text, {
           source: filePath
         },
         {
-          caption: '✅ دانلود شد'
+          caption: caption
         }
       );
 
