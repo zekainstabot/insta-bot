@@ -894,33 +894,21 @@ try {
     );
   }
 
-  await ctx.replyWithVideo(
-    {
-      source: filePath
-    },
-    {
-      caption: caption || '✅ دانلود شد'
-    }
-  );
+        await ctx.replyWithVideo(
+        {
+          source: filePath
+        },
+        {
+          caption: caption || '✅ دانلود شد'
+        }
+      );
 
-      {
-      caption: caption || '✅ دانلود شد'
-    }
-  );
-
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
-
-    } catch (error) {
-  
     } catch (error) {
       console.error(
         'Download error:',
         error
       );
 
-      // فقط همان سهمیه‌ای که مصرف شده برمی‌گردد
       await refundDownload(
         user.user_id,
         consumedType
@@ -944,6 +932,18 @@ try {
         }
       }
     }
+
+  } catch (error) {
+    console.error(
+      'Instagram handler error:',
+      error
+    );
+
+    await ctx.reply(
+      '❌ خطایی هنگام پردازش درخواست رخ داد.'
+    );
+  }
+});
 
   } catch (error) {
     console.error(
