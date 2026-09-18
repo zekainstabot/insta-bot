@@ -21,6 +21,10 @@ if (!DATABASE_URL) {
 
 const bot = new Telegraf(BOT_TOKEN);
 
+function isAdmin(ctx) {
+  return String(ctx.from?.id) === String(ADMIN_ID);
+}
+
 const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: {
