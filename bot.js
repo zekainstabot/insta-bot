@@ -945,12 +945,6 @@ try {
   }
 });
 
-  } catch (error) {
-    console.error(
-      'Instagram handler error:',
-      error
-    );
-
     await ctx.reply(
       '❌ خطایی هنگام پردازش درخواست رخ داد.'
     );
