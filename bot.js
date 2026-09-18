@@ -57,12 +57,12 @@ async function initDatabase() {
       daily_used INTEGER DEFAULT 0,
       period_start TIMESTAMP DEFAULT NOW(),
       bonus_downloads INTEGER DEFAULT 0,
+      blocked BOOLEAN DEFAULT FALSE,
       referrals INTEGER DEFAULT 0,
       referred_by TEXT,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
-
   console.log('✅ Database آماده است.');
 }
 
