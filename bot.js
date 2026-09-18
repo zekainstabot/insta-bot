@@ -836,6 +836,90 @@ server.listen(PORT, '0.0.0.0', () => {
     `HTTP server running on port ${PORT}`
   );
 });
+// ================================
+// مدیریت مسدود کردن کاربران
+// ================================
+
+bot.hears(/^مسدود @([A-Za-z0-9_]+)$/i, async (ctx) => {
+  if (!isAdmin(ctx)) {
+    return ctx.reply('⛔️ دسترسی ندارید.');
+  }
+
+  const username = ctx.match[1];
+
+  try {
+    const result = await pool.query(
+      `
+      UPDATE users
+      SET blocked = TRUE
+      WHERE LOWER(username) = LOWER($1)
+      RETURNING user_id, username, first_name
+      `,
+      [username]
+    );
+
+    if (result.rows.length === 0) {
+      return ctx.reply('❌ کاربری با این username پیدا نشد.');
+    }
+
+    const user = result.rows[0];
+
+    await ctx.reply(
+      `🚫 کاربر مسدود شد.
+
+👤 @${user.username}
+🆔 ${user.user_id}
+📛 نام: ${user.first_name || 'بدون نام'}`
+    );
+
+  } catch (error) {
+    console.error('Block user error:', error);
+    await ctx.reply('❌ هنگام مسدود کردن کاربر خطایی رخ داد.');
+  }
+});
+
+
+// ================================
+// مدیریت رفع مسدودی کاربران
+// ================================
+
+bot.hears(/^رفع @([A-Za-z0-9_]+)$/i, async (ctx) => {
+  if (!isAdmin(ctx)) {
+    return ctx.reply('⛔️ دسترسی ندارید.');
+  }
+
+  const username = ctx.match[1];
+
+  try {
+    const result = await pool.query(
+      `
+      UPDATE users
+      SET blocked = FALSE
+      WHERE LOWER(username) = LOWER($1)
+      RETURNING user_id, username, first_name
+      `,
+      [username]
+    );
+
+    if (result.rows.length === 0) {
+      return ctx.reply('❌ کاربری با این username پیدا نشد.');
+    }
+
+    const user = result.rows[0];
+
+    await ctx.reply(
+      `✅ مسدودی کاربر برداشته شد.
+
+👤 @${user.username}
+🆔 ${user.user_id}
+📛 نام: ${user.first_name || 'بدون نام'}`
+    );
+
+  } catch (error) {
+    console.error('Unblock user error:', error);
+    await ctx.reply('❌ هنگام رفع مسدودی کاربر خطایی رخ داد.');
+  }
+});
 
 // ================================
 // Start Bot
