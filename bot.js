@@ -463,16 +463,16 @@ bot.hears('🎁 مدیریت سهمیه', async (ctx) => {
 });
 
 // دریافت سهمیه با username
-bot.on('text', async (ctx) => {
+bot.on('text', async (ctx, next) => {
   if (!isAdmin(ctx)) {
-    return;
+    return next();
   }
 
   const text = ctx.message.text.trim();
   const match = text.match(/^@([A-Za-z0-9_]+)\s+(\d+)$/);
 
   if (!match) {
-    return;
+    return next();
   }
 
   const username = match[1];
@@ -503,7 +503,7 @@ bot.on('text', async (ctx) => {
 
   } catch (error) {
     console.error('Admin quota error:', error);
-    await ctx.reply('❌ هنگام تغییر سهمیه خطایی رخ داد.');
+    await ctx.reply('❌ هنگام اضافه کردن سهمیه خطایی رخ داد.');
   }
 });
 
