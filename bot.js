@@ -726,11 +726,18 @@ bot.on('text', async (ctx) => {
     const user = await ensureUser(ctx);
 
     if (!user) {
-      await ctx.reply(
-        '❌ اطلاعات کاربر پیدا نشد.'
-      );
-      return;
-    }
+  await ctx.reply(
+    '❌ اطلاعات کاربر پیدا نشد.'
+  );
+  return;
+}
+
+if (user.blocked) {
+  await ctx.reply(
+    '🚫 دسترسی شما به دانلود مسدود شده است.'
+  );
+  return;
+}
 
     // مشخص می‌کند از سهمیه روزانه یا هدیه استفاده شده
     const consumedType =
