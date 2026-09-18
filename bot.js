@@ -1036,7 +1036,6 @@ bot.hears('🔙 بازگشت', async (ctx) => {
   if (!isAdmin(ctx)) {
     return ctx.reply('⛔️ دسترسی ندارید.');
   }
-
   await ctx.reply(
     '🏠 به منوی اصلی برگشتی.',
     Markup.keyboard([
