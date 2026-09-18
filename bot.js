@@ -358,7 +358,7 @@ await ctx.reply(
   ]).resize()
 );
 });
-// ================================
+//// ================================
 // آمار ربات
 // ================================
 
@@ -368,22 +368,22 @@ bot.hears('📊 آمار ربات', async (ctx) => {
   }
 
   try {
-    const result = await pool.query(
+    const result = await pool.query(`
       SELECT
         COUNT(*) AS total_users,
         COUNT(*) FILTER (
           WHERE created_at >= NOW() - INTERVAL '24 hours'
         ) AS new_users_24h
       FROM users
-    );
+    `);
 
     const stats = result.rows[0];
 
     await ctx.reply(
-      📊 آمار ربات
+      `📊 آمار ربات
 
 👥 کل کاربران: ${stats.total_users}
-🆕 کاربران جدید در ۲۴ ساعت اخیر: ${stats.new_users_24h}
+🆕 کاربران جدید در ۲۴ ساعت اخیر: ${stats.new_users_24h}`
     );
 
   } catch (error) {
